@@ -25,23 +25,32 @@ def transform_data(path: Path) -> pd.DataFrame:
     return df
 
 @task(retries=3, log_prints=True)
-def write_to_bq(df: pd.DataFrame) -> None:
+def write_to_bq(df: pd.DataFrame, color: str) -> None:
     """Write the DataFrame to BigQuery"""
     gcp_credentials_block = GcpCredentials.load("gcp-credentials-block")
-    df.to_gbq(
-        destination_table="ny_taxi_trips.taxi_rides",
-        project_id="dtc-de-zoomcamp-utksxn96",
-        credentials=gcp_credentials_block.get_credentials_from_service_account(),
-        chunksize=500_000,
-        if_exists="append"
-    )
+    if color == "yellow":
+        df.to_gbq(
+            destination_table="ny_taxi_trips.taxi_rides",
+            project_id="dtc-de-zoomcamp-utksxn96",
+            credentials=gcp_credentials_block.get_credentials_from_service_account(),
+            chunksize=500_000,
+            if_exists="append"
+        )
+    elif color == "green":
+        df.to_gbq(
+            destination_table="ny_taxi_trips.taxi_rides_green",
+            project_id="dtc-de-zoomcamp-utksxn96",
+            credentials=gcp_credentials_block.get_credentials_from_service_account(),
+            chunksize=500_000,
+            if_exists="append"
+        )
 
 @flow(log_prints=True)
 def etl_gcs_to_bq(year: int, month: int, color: str) -> None:
     """Main ETL function to load data into BigQuery"""
     local_path = extract_from_gcs(color, year, month)
     df = transform_data(local_path)
-    write_to_bq(df)
+    write_to_bq(df, color)
 
 @flow(log_prints=True)
 def etl_parent_gcs_to_bq_flow(
